@@ -1,0 +1,34 @@
+name:                imagine
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/strake/card#readme
+license:             BSD3
+license-file:        LICENSE
+author:              M Farkas-Dyck
+maintainer:          strake888@gmail.com
+copyright:           2016 M Farkas-Dyck
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+data-files:          dat/frames/*.png, dat/symbols/*.png, dat/fonts/*.svg
+cabal-version:       >=1.10
+
+executable imagine
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  other-modules:       Paths_imagine, Util, Util.Map
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , card
+                     , containers
+                     , async
+                     , regex-applicative
+                     , colour >=2.3 && <2.4
+                     , linear >=1.20 && <1.21
+                     , diagrams-core >=1.3 && <1.4
+                     , diagrams-lib >=1.3 && <1.4
+                     , diagrams-svg >=1.3 && <1.4
+                     , SVGFont >=0.1 && <0.2
+                     , split >=0.2 && <0.3
+  default-language:    Haskell2010
