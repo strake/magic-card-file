@@ -16,7 +16,10 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Card
+  other-modules:       Util.Regex
   build-depends:       base >= 4.7 && < 5
+                     , vector >= 0.11 && < 0.13
                      , regex-applicative
+                     , txt
   default-language:    Haskell2010
   ghc-options:         -Wall

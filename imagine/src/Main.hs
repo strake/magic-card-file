@@ -47,14 +47,14 @@ main = do
                   fst . SVG.prepareFont . SVG.parseFont "" <$>
                   (getDataFileName ("dat/fonts/" ++ fontName ++ ".svg") >>= readFile))
         ["MPlantin", "MagicMedieval"]
-    (_, frames :: Map Frame (QDiagram _ V2 Double Any)) <-
-        fmap (id *** fmap (alignTL . scaleUToX 5 . image)) . traverseEither loadImageEmb =<<
+    (_ :: _ SomeException, frames :: Map Frame (QDiagram _ V2 Double Any)) <-
+        traverseEither (try . fmap (alignTL . scaleUToX 5) . Svg.loadImageSVG) =<<
         (sequenceA . Map.fromList) [(x, getDataFileName ("dat/frames/" ++ show x ++ ".png")) | x <- enumFrom W]
-    (_, symbols :: Map Char (QDiagram _ V2 Double Any)) <-
-        fmap (id *** fmap (scaleUToX 0.25 . image)) . traverseEither loadImageEmb =<<
+    (_ :: _ SomeException, symbols :: Map Char (QDiagram _ V2 Double Any)) <-
+        traverseEither (try . fmap (scaleUToX 0.25) . Svg.loadImageSVG) =<<
         (sequenceA . Map.fromList) [(x, getDataFileName ("dat/symbols/" ++ x : ".png")) | x <- "0123456789WUBRGTXYZ"]
-    let draw :: Card -> QDiagram _ V2 Double Any -> [Char] -> QDiagram _ V2 Double Any
-        draw (Card {..}) art artistName =
+    let draw :: Card -> _ -> QDiagram _ V2 Double Any -> [Char] -> QDiagram _ V2 Double Any
+        draw (Card {..}) (setSymbolC, setSymbolU, setSymbolR) art artistName =
             position [(p2 (0.572, -0.540), title),
                       (p2 (4.610, -0.570), manaCost),
                       (p2 (0.535, -4.050), frameText id 0.01 mPlantinFont 0.250 cardType),
@@ -62,6 +62,7 @@ main = do
                       (p2 (0.667, -5.250), flavText),
                       (p2 (4.346, -6.400), pt),
                       (p2 (2.500, -6.320), artCred),
+                      (p2 (4.333, -3.975), (centerY . centerX . scaleUToY 0.250) setSymbol),
                       (p2 (2.500, -6.490), copyNote),
                       (p2 (0,      0),     fromMaybe (error ("Frame not found: " ++ show frame)) $
                                            Map.lookup frame frames),
@@ -71,6 +72,9 @@ main = do
             title = frameText id 0.01 magicMedievalFont 0.300 $ bool cardName (show cardCode) (null cardName)
             pt = maybe mempty (frameText (centerXY {-# . bold #-}) 0.02 mPlantinFont 0.300) $ cardPT
             manaCost = maybe mempty (alignBR . hsep 0.030 . fmap findSymbol) cardCost
+            setSymbol = case codeRarity cardCode of Common -> setSymbolC
+                                                    Uncommon -> setSymbolU
+                                                    Rare -> setSymbolR
             rulesText = fillColor black $ alignL $ vsep rulesParagraphVSpace $ rulesParagraphs
             rulesParagraphs =
                 wrapText (inlineSymbol . findSymbol)
@@ -96,6 +100,8 @@ main = do
         findSymbol :: Char -> QDiagram _ V2 Double Any
         findSymbol x = fromMaybe (error ("Symbol not found: " ++ [x])) $ Map.lookup x symbols
 
+        loadImageOrEmpty path = either (pure mempty :: SomeException -> _) id <$> (try . Svg.loadImageSVG) path
+
     fmap fold $ getContents >>=
                 List.splitOn "\n\n\n" &
                 fmap (\ xs ->
@@ -104,9 +110,12 @@ main = do
                 ordNubOn cardCode &
                 mapConcurrently
                 (\ card@(Card {..}) -> do
-                     art <- either (pure mempty) image <$> loadImageEmb ("/dev/fd/3/" ++ cardName)
+                     setSymbolC <- loadImageOrEmpty "/dev/fd/4/c"
+                     setSymbolU <- loadImageOrEmpty "/dev/fd/4/u"
+                     setSymbolR <- loadImageOrEmpty "/dev/fd/4/r"
+                     art <- loadImageOrEmpty ("/dev/fd/3/" ++ cardName)
                      cred <- either (pure Nothing :: SomeException -> _) Just <$> (try . readFile) ("/dev/fd/3/" ++ cardName ++ ".cred")
-                     Svg.renderSVG ("/dev/fd/1/" ++ show cardCode ++ ".svg") (dims (V2 787 1087)) $ draw card art (fromMaybe "Nilbert Nullingsworth" cred))
+                     Svg.renderSVG ("/dev/fd/1/" ++ show cardCode ++ ".svg") (dims (V2 787 1087)) $ draw card (setSymbolC, setSymbolU, setSymbolR) art (fromMaybe "Nilbert Nullingsworth" cred))
 
 parseRulesText :: [Char] -> [Either Char Char]
 parseRulesText = fromMaybe (error "bad rules text") .
